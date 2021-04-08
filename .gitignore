@@ -1,0 +1,9 @@
+*.vscode
+**/output/
+*.ll
+*.so
+*.DS_Store
+*.o
+*.bc
+*.zip
+
