@@ -109,7 +109,7 @@ namespace llvm
                 this->_final[bb] = finalInit;
             }
         }
-        for (auto it = this->_gen.begin(); it != this->_gen.end; ++it)
+        for (auto it = this->_gen.begin(); it != this->_gen.end(); ++it)
         {
             string bb = it->first;
             assert(this->_gen[bb].size() == this->_numElements);
