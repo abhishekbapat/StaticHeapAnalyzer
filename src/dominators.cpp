@@ -29,7 +29,7 @@ void Dominators::_printBitVector(BitVector vector, map<string, int> domain, Stri
     outs() << "}\n";
 }
 
-void Dominators::_generateDominatorsMap(vector<BitVector> vector, map<string, int> domain)
+void Dominators::_generateDominatorsMap(map<string, BitVector> out, map<string, int> domain)
 {
     for (auto dom = domain.begin(); dom != domain.end(); ++dom)
     {
@@ -38,7 +38,7 @@ void Dominators::_generateDominatorsMap(vector<BitVector> vector, map<string, in
         for (auto dom_iter = domain.begin(); dom_iter != domain.end(); ++dom_iter)
         {
             string bb = dom_iter->first;
-            if (vector[dom->second][domain[bb]] == true)
+            if (out[block][domain[bb]] == true)
                 outputs.insert(bb);
         }
         this->dominatorsMap[block] = outputs;
@@ -65,12 +65,24 @@ bool Dominators::runOnFunction(Function &F)
     map<string, int> domain;
     map<string, BitVector> genMap, killMap;
     int basicBlockCounter = 0;
+    map<string, set<string>> basicBlockMap;
+    vector<string> basicBlockOrder;
     ReversePostOrderTraversal<Function *> rpo(&F);
     for (ReversePostOrderTraversal<Function *>::rpo_iterator i = rpo.begin(); i != rpo.end(); ++i)
     {
         BasicBlock *block = *i;
-        domain[block->getName().str()] = basicBlockCounter;
+        string bbName = block->getName().str();
+        domain[bbName] = basicBlockCounter;
+        basicBlockOrder.push_back(bbName);
         basicBlockCounter++;
+        set<string> preds;
+        for (pred_iterator it = pred_begin(block); it != pred_end(block); ++it)
+        {
+            BasicBlock *predBlock = *it;
+            string predName = predBlock->getName().str();
+            preds.insert(predName);
+        }
+        basicBlockMap[bbName] = preds;
     }
     BitVector boundary(basicBlockCounter, false);
     for (auto i = domain.begin(); i != domain.end(); ++i)
@@ -78,21 +90,21 @@ bool Dominators::runOnFunction(Function &F)
         string bb = i->first;
         killMap[bb] = boundary;
         BitVector gen(basicBlockCounter, false);
-        gen[i->second] = true;
+        gen.set(i->second);
         genMap[bb] = gen;
     }
 
-    DominatorFramework framework(domain, _direction, _meetOperator, boundary, basicBlockCounter, basicBlockCounter, genVector, killVector);
-    framework.Init(F);
+    DominatorFramework framework(domain, _direction, _meetOperator, boundary, basicBlockCounter, basicBlockCounter, genMap, killMap, basicBlockMap, basicBlockOrder);
+    framework.Init();
     framework.Compute();
-    vector<BitVector> in = framework.ReturnInitial();
-    vector<BitVector> out = framework.ReturnFinal();
+    map<string, BitVector> in = framework.ReturnInitial();
+    map<string, BitVector> out = framework.ReturnFinal();
     // outs() << "Function: " << F.getName() << "\n\n";
     // for (auto bb_iter = domain.begin(); bb_iter != domain.end(); ++bb_iter)
     // {
     //     outs() << "Basic Block name: " << bb_iter->first << "\n";
-    //     _printBitVector(in[bb_iter->second], domain, "IN[BB]");
-    //     _printBitVector(out[bb_iter->second], domain, "OUT[BB]");
+    //     _printBitVector(in[bb_iter->first], domain, "IN[BB]");
+    //     _printBitVector(out[bb_iter->first], domain, "OUT[BB]");
     //     outs() << "\n";
     // }
     _generateDominatorsMap(out, domain);

@@ -6,7 +6,7 @@
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "dataflow.h"
+#include "./lib/dataflow.h"
 
 using namespace llvm;
 using namespace std;
@@ -20,7 +20,7 @@ namespace llvm
         MeetOperator _meetOperator;
         map<string, set<string>> dominatorsMap;
         void _printBitVector(BitVector, map<string, int>, StringRef);
-        void _generateDominatorsMap(vector<BitVector>, map<string, int>);
+        void _generateDominatorsMap(map<string, BitVector>, map<string, int>);
     public:
         static char ID;
         Dominators();

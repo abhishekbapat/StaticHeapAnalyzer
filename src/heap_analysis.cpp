@@ -12,6 +12,7 @@
 
 #include "./lib/dataflow.h"
 #include "./lib/utility.h"
+#include "dominators.h"
 
 using namespace llvm;
 using namespace std;
@@ -60,6 +61,7 @@ namespace llvm
         bool runOnFunction(Function &F) override
         {
             AliasAnalysis &aa = getAnalysis<AAResultsWrapperPass>().getAAResults();
+            map<string, set<string>> dominators = getAnalysis<Dominators>().returnDominators();
             set<Instruction *> pointers;
 
             for (BasicBlock &BB : F)
@@ -72,12 +74,25 @@ namespace llvm
                 }
             }
 
+            for(auto it = dominators.begin(); it != dominators.end(); ++it)
+            {
+                string bbName = it->first;
+                set<string> doms = it->second;
+                outs() << bbName << ": {" << " ";
+                for (auto dom = doms.begin(); dom != doms.end(); ++dom)
+                {
+                    outs() << *dom << " ";
+                }
+                outs() << "}\n";
+            }
+
             return false;
         }
 
         void getAnalysisUsage(AnalysisUsage &AU) const
         {
             AU.addRequired<AAResultsWrapperPass>();
+            AU.addRequired<Dominators>();
         }
     };
 
