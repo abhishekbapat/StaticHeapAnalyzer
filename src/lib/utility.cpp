@@ -41,4 +41,32 @@ namespace llvm
             return "\"" + inst + "\"";
         }
     }
+
+    void Utility::printBitVector(BitVector vector, map<string, int> domain, StringRef label)
+    {
+        outs() << label << ": \n";
+        outs() << "{";
+        for (auto dom_iter = domain.begin(); dom_iter != domain.end(); ++dom_iter)
+        {
+            string bb = dom_iter->first;
+            if (vector[domain[bb]] == true)
+                outs() << bb << " ";
+        }
+        outs() << "}\n";
+    }
+
+    void Utility::printStats(vector<string> basicBlockOrder, map<string, BitVector> genMap, map<string, BitVector> killMap, map<string, BitVector> in,
+                           map<string, BitVector> out, map<string, int> domain)
+    {
+        for (auto i = 0; i < basicBlockOrder.size(); ++i)
+        {
+            string bb = basicBlockOrder[i];
+            outs() << "Basic Block: " << bb << "\n";
+            printBitVector(genMap[bb], domain, "GEN");
+            printBitVector(killMap[bb], domain, "KILL");
+            printBitVector(in[bb], domain, "IN");
+            printBitVector(out[bb], domain, "OUT");
+            outs() << "\n";
+        }
+    }
 }

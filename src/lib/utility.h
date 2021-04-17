@@ -16,6 +16,9 @@ namespace llvm
     {
     public:
         static string getShortValueName(Value *v);
+        static void printBitVector(BitVector, map<string, int>, StringRef);
+        static void printStats(vector<string>, map<string, BitVector>, map<string, BitVector>, map<string, BitVector>, map<string, BitVector>,
+                               map<string, int>);
     };
 }
 #endif

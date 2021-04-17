@@ -99,14 +99,6 @@ bool Dominators::runOnFunction(Function &F)
     framework.Compute();
     map<string, BitVector> in = framework.ReturnInitial();
     map<string, BitVector> out = framework.ReturnFinal();
-    // outs() << "Function: " << F.getName() << "\n\n";
-    // for (auto bb_iter = domain.begin(); bb_iter != domain.end(); ++bb_iter)
-    // {
-    //     outs() << "Basic Block name: " << bb_iter->first << "\n";
-    //     _printBitVector(in[bb_iter->first], domain, "IN[BB]");
-    //     _printBitVector(out[bb_iter->first], domain, "OUT[BB]");
-    //     outs() << "\n";
-    // }
     _generateDominatorsMap(out, domain);
     // Did not modify the incoming Function.
     return false;
