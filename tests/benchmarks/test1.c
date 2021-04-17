@@ -9,6 +9,6 @@ int main()
     *y = 10;
     x = y;
     printf("Val: %d", *y);
-
+    
     return 0;
 }
