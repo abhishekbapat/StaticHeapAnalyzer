@@ -41,7 +41,7 @@ void Dominators::_generateDominatorsMap(map<string, BitVector> out, map<string, 
             if (out[block][domain[bb]] == true)
                 outputs.insert(bb);
         }
-        this->dominatorsMap[block] = outputs;
+        this->_dominatorsMap[block] = outputs;
     }
 }
 
@@ -106,10 +106,10 @@ bool Dominators::runOnFunction(Function &F)
 
 map<string, set<string>> Dominators::returnDominators()
 {
-    return this->dominatorsMap;
+    return this->_dominatorsMap;
 }
 
 // LLVM uses the address of this static member to identify the pass, so the
 // initialization value is unimportant.
 char Dominators::ID = 0;
-static RegisterPass<Dominators> X("dominators", "5984: Function Information");
+static RegisterPass<Dominators> X("dominators", "Dominators Pass");

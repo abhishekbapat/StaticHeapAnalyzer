@@ -18,7 +18,7 @@ namespace llvm
     private:
         Direction _direction;
         MeetOperator _meetOperator;
-        map<string, set<string>> dominatorsMap;
+        map<string, set<string>> _dominatorsMap;
         void _printBitVector(BitVector, map<string, int>, StringRef);
         void _generateDominatorsMap(map<string, BitVector>, map<string, int>);
     public:
