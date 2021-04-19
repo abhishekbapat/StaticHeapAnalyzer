@@ -25,10 +25,10 @@ namespace llvm
     class HeapTransform : public FunctionPass
     {
     private:
-        set<Value *> _mallocPtrs, _mallocLoopPtrs;
+        set<Value *> _mallocPtrs;
         map<string, set<string>> _nonLivePtrs;
         set<BasicBlock *> _blocksInLoop;
-        Instruction *terminatingInstr;
+        Instruction *_terminatingInstr;
 
         void _printMap(map<string, set<string>> m)
         {
@@ -55,8 +55,6 @@ namespace llvm
                 {
                     if (isa<CallInst>(&I))
                     {
-                        if (_mallocLoopPtrs.find(&I) != _mallocLoopPtrs.end())
-                            continue;
                         Function *func_name = cast<CallInst>(&I)->getCalledFunction();
                         outs() << "\nPointer name: " << Utility::getShortValueName(&I) << "\n";
                         if (func_name->getName() == "malloc" || func_name->getName() == "_Znmw")
@@ -74,7 +72,7 @@ namespace llvm
             {
                 outs() << "Freeing pointer: " << Utility::getShortValueName(p) << "\n";
                 Instruction *newInst = CallInst::CreateFree(p, BB);
-                newInst->insertBefore(terminatingInstr);
+                newInst->insertBefore(_terminatingInstr);
                 _mallocPtrs.erase(p);
             }
         }
@@ -109,7 +107,7 @@ namespace llvm
                 {
                     // if(!isa<ReturnInst>(I))
                     //     continue;
-                    terminatingInstr = I;
+                    _terminatingInstr = I;
                     for (User::op_iterator itr = I->op_begin(); itr != I->op_end(); ++itr)
                     {
                         terminatingValue = *itr;
@@ -146,6 +144,7 @@ namespace llvm
             AliasAnalysis &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
             LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
 
+            //Identify malloc pointers in loop
             BasicBlock *latch;
             for (Loop *L : LI)
             {
@@ -170,7 +169,7 @@ namespace llvm
             // outs() << "OUTs:\n";
             // _printMap(out);
 
-            //Identify malloc pointers
+            //Identify malloc pointers in rest of the function
             for (BasicBlock &BB : F)
             {
                 if (_blocksInLoop.find(&BB) == _blocksInLoop.end())
