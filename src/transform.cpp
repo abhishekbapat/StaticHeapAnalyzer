@@ -1,9 +1,12 @@
 #include "llvm/IR/Function.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/User.h"
 #include "llvm/Pass.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/LoopInfo.h"
 
 #include "./lib/utility.h"
 #include "dominators.h"
@@ -21,31 +24,15 @@ namespace llvm
 {
     class HeapTransform : public FunctionPass
     {
-    public:
-        static char ID;
-        HeapTransform() : FunctionPass(ID) {}
-        ~HeapTransform() {}
+    private:
+        set<Value *> _mallocPtrs, _mallocLoopPtrs;
+        map<string, set<string>> _nonLivePtrs;
+        set<BasicBlock *> _blocksInLoop;
+        Instruction *terminatingInstr;
 
-        void getAnalysisUsage(AnalysisUsage &AU) const override
+        void _printMap(map<string, set<string>> m)
         {
-            AU.setPreservesCFG();
-            AU.addRequired<Dominators>();
-            AU.addRequired<HeapAnalysis>();
-        }
-
-        bool doInitialization(Module &M) override
-        {
-            return false;
-        }
-
-        bool runOnFunction(Function &F) override
-        {
-            map<string, set<string>> dominatorsMap = getAnalysis<Dominators>().returnDominators();
-            map<string, set<string>> in = getAnalysis<HeapAnalysis>().returnIn();
-            map<string, set<string>> out = getAnalysis<HeapAnalysis>().returnOut();
-
-            outs() << "Dominators:\n";
-            for (auto it = dominatorsMap.begin(); it != dominatorsMap.end(); ++it)
+            for (auto it = m.begin(); it != m.end(); ++it)
             {
                 string bbName = it->first;
                 set<string> doms = it->second;
@@ -58,38 +45,152 @@ namespace llvm
                 outs() << "}\n";
             }
             outs() << "\n";
+        }
 
-            outs() << "INs:\n";
-            for (auto it = in.begin(); it != in.end(); ++it)
+        void _findMallocPtr(BasicBlock *BB)
+        {
+            for (Instruction &I : *BB)
             {
-                string bbName = it->first;
-                set<string> ins = it->second;
-                outs() << bbName << ": {"
-                       << " ";
-                for (auto i = ins.begin(); i != ins.end(); ++i)
+                if (I.getType()->isPointerTy())
                 {
-                    outs() << *i << " ";
+                    if (isa<CallInst>(&I))
+                    {
+                        if (_mallocLoopPtrs.find(&I) != _mallocLoopPtrs.end())
+                            continue;
+                        Function *func_name = cast<CallInst>(&I)->getCalledFunction();
+                        outs() << "\nPointer name: " << Utility::getShortValueName(&I) << "\n";
+                        if (func_name->getName() == "malloc" || func_name->getName() == "_Znmw")
+                        {
+                            if (_mallocPtrs.find(&I) == _mallocPtrs.end())
+                                _mallocPtrs.insert(&I);
+                        }
+                    }
                 }
-                outs() << "}\n";
             }
-            outs() << "\n";
-
-            outs() << "OUTs:\n";
-            for (auto it = out.begin(); it != out.end(); ++it)
+        }
+        void _freePointer(BasicBlock *BB)
+        {
+            for (Value *p : _mallocPtrs)
             {
-                string bbName = it->first;
-                set<string> outputs = it->second;
-                outs() << bbName << ": {"
-                       << " ";
-                for (auto o = outputs.begin(); o != outputs.end(); ++o)
-                {
-                    outs() << *o << " ";
-                }
-                outs() << "}\n";
+                outs() << "Freeing pointer: " << Utility::getShortValueName(p) << "\n";
+                Instruction *newInst = CallInst::CreateFree(p, BB);
+                newInst->insertBefore(terminatingInstr);
+                _mallocPtrs.erase(p);
             }
-            outs() << "\n";
+        }
 
+    public:
+        static char ID;
+        HeapTransform() : FunctionPass(ID) {}
+        ~HeapTransform() {}
+
+        void getAnalysisUsage(AnalysisUsage &AU) const override
+        {
+            AU.setPreservesCFG();
+            AU.addRequired<Dominators>();
+            AU.addRequired<HeapAnalysis>();
+            AU.addRequired<AAResultsWrapperPass>();
+            AU.addRequired<LoopInfoWrapperPass>();
+        }
+
+        bool doInitialization(Module &M) override
+        {
             return false;
+        }
+
+        void computeInstrToFree(BasicBlock *B, AliasAnalysis &AA)
+        {
+            Value *terminatingValue = NULL;
+            for (BasicBlock::reverse_iterator i = B->rbegin(); i != B->rend(); ++i)
+            {
+                Instruction *I = &*i;
+                Value *val = I;
+                if (I->isTerminator())
+                {
+                    // if(!isa<ReturnInst>(I))
+                    //     continue;
+                    terminatingInstr = I;
+                    for (User::op_iterator itr = I->op_begin(); itr != I->op_end(); ++itr)
+                    {
+                        terminatingValue = *itr;
+                        outs() << "\nterminator instruction: " << Utility::getShortValueName(terminatingValue) << "\n";
+                    }
+                }
+                else if (Utility::getShortValueName(val) == Utility::getShortValueName(terminatingValue))
+                {
+                    for (User::op_iterator itr = I->op_begin(); itr != I->op_end(); ++itr)
+                    {
+                        Value *userVal = *itr;
+
+                        outs() << "\npointer instruction: " << Utility::getShortValueName(userVal) << "\n";
+                        for (Value *p : _mallocPtrs)
+                        {
+                            bool isAlias = AA.alias(userVal, p);
+                            if (isAlias == true)
+                            {
+                                _mallocPtrs.erase(p);
+                                outs() << "alias pointer check: " << Utility::getShortValueName(p) << " is alias\n";
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        bool runOnFunction(Function &F) override
+        {
+            map<string, set<string>> dominatorsMap = getAnalysis<Dominators>().returnDominators();
+            map<string, set<string>> in = getAnalysis<HeapAnalysis>().returnIn();
+            map<string, set<string>> out = getAnalysis<HeapAnalysis>().returnOut();
+            AliasAnalysis &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
+            LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+
+            BasicBlock *latch;
+            for (Loop *L : LI)
+            {
+                for (BasicBlock *BB : L->getBlocks())
+                {
+                    outs() << "\nBB name in loop: " << Utility::getBlockLabel(BB) << "\n";
+                    _blocksInLoop.insert(BB);
+                    _findMallocPtr(BB);
+                }
+                latch = L->getLoopLatch();
+                outs() << "Loop latch: " << Utility::getBlockLabel(latch) << "\n";
+                computeInstrToFree(latch, AA);
+            }
+            _freePointer(latch);
+
+            // outs() << "Dominators:\n";
+            // _printMap(dominatorsMap);
+
+            // outs() << "INs:\n";
+            // _printMap(in);
+
+            // outs() << "OUTs:\n";
+            // _printMap(out);
+
+            //Identify malloc pointers
+            for (BasicBlock &BB : F)
+            {
+                if (_blocksInLoop.find(&BB) == _blocksInLoop.end())
+                    _findMallocPtr(&BB);
+            }
+
+            BasicBlock *lastBB;
+
+            for (po_iterator<BasicBlock *> FI = po_begin(&F.getEntryBlock()); FI != po_end(&F.getEntryBlock()); ++FI)
+            {
+                if (_blocksInLoop.find(*FI) != _blocksInLoop.end())
+                    continue;
+                lastBB = *FI;
+                outs() << "\nb name: " << Utility::getBlockLabel(lastBB);
+                computeInstrToFree(lastBB, AA);
+                break;
+            }
+            _freePointer(lastBB);
+
+            return true;
         }
     };
 

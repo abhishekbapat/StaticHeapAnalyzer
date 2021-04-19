@@ -71,7 +71,8 @@ bool Dominators::runOnFunction(Function &F)
     for (ReversePostOrderTraversal<Function *>::rpo_iterator i = rpo.begin(); i != rpo.end(); ++i)
     {
         BasicBlock *block = *i;
-        string bbName = block->getName().str();
+        
+        string bbName = Utility::getBlockLabel(block);
         domain[bbName] = basicBlockCounter;
         basicBlockOrder.push_back(bbName);
         basicBlockCounter++;

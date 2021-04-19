@@ -6,6 +6,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Pass.h"
+#include "llvm/ADT/BitVector.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace std;
@@ -16,6 +17,7 @@ namespace llvm
     {
     public:
         static string getShortValueName(Value *v);
+        static string getBlockLabel(BasicBlock *B);
         static void printBitVector(BitVector, map<string, int>, StringRef);
         static void printStats(vector<string>, map<string, BitVector>, map<string, BitVector>, map<string, BitVector>, map<string, BitVector>,
                                map<string, int>);

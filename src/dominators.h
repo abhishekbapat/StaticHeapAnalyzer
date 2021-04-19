@@ -7,6 +7,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "./lib/dataflow.h"
+#include "./lib/utility.h"
 
 using namespace llvm;
 using namespace std;
