@@ -48,6 +48,11 @@ namespace llvm
             outs() << "\n";
         }
 
+        /**
+         * 
+         * Find all the malloc instructions
+         *  
+         **/
         void _findMallocPtr(BasicBlock *BB)
         {
             for (Instruction &I : *BB)
@@ -135,6 +140,8 @@ namespace llvm
          * the block which has out values as {} "empty"
          * 
          * We need to check here whether return statement uses a pointer.
+         * If it does, then perform alias analysis to find the malloc instruction and,
+         * erase that instruction from the set of instructions to be freed.
          *  
          **/
         void _computeInstrToFree(BasicBlock *B, AliasAnalysis &AA)
@@ -146,8 +153,6 @@ namespace llvm
                 Value *val = I;
                 if (I->isTerminator())
                 {
-                    // if(!isa<ReturnInst>(I))
-                    //     continue;
                     _terminatingInstr = I;
                     for (User::op_iterator itr = I->op_begin(); itr != I->op_end(); ++itr)
                     {
