@@ -114,7 +114,7 @@ namespace llvm
 
             for (auto it = inPtrs.begin(); it != inPtrs.end(); ++it)
             {
-                if (outPtrs.find(*it) != outPtrs.end())
+                if (outPtrs.find(*it) == outPtrs.end())
                 {
                     Value *p = _domain[*it];
                     if (p == NULL)
@@ -133,6 +133,8 @@ namespace llvm
          * 
          * Compute pointers to free in the "last" block OR,
          * the block which has out values as {} "empty"
+         * 
+         * We need to check here whether return statement uses a pointer.
          *  
          **/
         void _computeInstrToFree(BasicBlock *B, AliasAnalysis &AA)
@@ -177,20 +179,6 @@ namespace llvm
                     break;
                 }
             }
-        }
-
-        /**
-         * 
-         * Check if _freePtrs is empty and _mallocPtrs is not. 
-         * This will happen only if firstly: OUT[BB] = EMPTY and IN[BB] != EMPTY
-         * And, second condition is: the return statement doesn't return a pointer.
-         * So then, we add all the malloc pointers to the _freePtrs to be freed.
-         *  
-         **/
-        void _checkIfFreeIsNull()
-        {
-            if(_freePtrs.size()==0 && _mallocPtrs.size()>0)
-                _freePtrs = _mallocPtrs;
         }
 
         /**
@@ -274,7 +262,7 @@ namespace llvm
             BasicBlock *latch;
             for (Loop *L : LI)
             {
-                outs()<<"Inside Loop.\n";
+                outs() << "Inside Loop.\n";
                 for (BasicBlock *BB : L->getBlocks())
                 {
                     _blocksInLoop.insert(BB);
@@ -287,7 +275,7 @@ namespace llvm
                 outs() << "Loop latch name: " << Utility::getBlockLabel(latch) << "\n";
                 _computeInstrToFree(latch, AA);
             }
-            _checkIfFreeIsNull();
+
             _freePointer(latch, dominatorsMap);
 
             /**
@@ -295,7 +283,7 @@ namespace llvm
             * Compute pointers to free in the rest of the function
             *  
             **/
-           outs()<<"\nOutside Loop.\n";
+            outs() << "\nOutside Loop.\n";
             for (BasicBlock &BB : F)
             {
                 if (_blocksInLoop.find(&BB) == _blocksInLoop.end())
@@ -313,11 +301,11 @@ namespace llvm
                 if (_blocksInLoop.find(*FI) != _blocksInLoop.end())
                     continue;
                 lastBB = *FI;
-                outs() << "Block name to insert free(): " << Utility::getBlockLabel(lastBB)<<"\n";
+                outs() << "Block name to insert free(): " << Utility::getBlockLabel(lastBB) << "\n";
                 _computeInstrToFree(lastBB, AA);
                 break;
             }
-            _checkIfFreeIsNull();
+
             _freePointer(lastBB, dominatorsMap);
 
             return true;
