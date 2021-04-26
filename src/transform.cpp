@@ -68,11 +68,17 @@ namespace llvm
         }
         void _freePointer(BasicBlock *BB)
         {
+            set<Value *> temp;
             for (Value *p : _mallocPtrs)
             {
                 outs() << "Freeing pointer: " << Utility::getShortValueName(p) << "\n";
                 Instruction *newInst = CallInst::CreateFree(p, BB);
                 newInst->insertBefore(_terminatingInstr);
+                temp.insert(p);
+            }
+            for (auto it = temp.begin(); it != temp.end(); ++it)
+            {
+                Value *p = *it;
                 _mallocPtrs.erase(p);
             }
         }
@@ -121,14 +127,21 @@ namespace llvm
                         Value *userVal = *itr;
 
                         outs() << "\npointer instruction: " << Utility::getShortValueName(userVal) << "\n";
+                        set<Value *> temp;
                         for (Value *p : _mallocPtrs)
                         {
                             bool isAlias = AA.alias(userVal, p);
                             if (isAlias == true)
                             {
-                                _mallocPtrs.erase(p);
+                                temp.insert(p);
+                                //_mallocPtrs.erase(p);
                                 outs() << "alias pointer check: " << Utility::getShortValueName(p) << " is alias\n";
                             }
+                        }
+
+                        for (auto it = temp.begin(); it != temp.end(); ++it)
+                        {
+                            _mallocPtrs.erase(*it);
                         }
                     }
                     break;
@@ -187,6 +200,11 @@ namespace llvm
                 computeInstrToFree(lastBB, AA);
                 break;
             }
+            // for(auto it = _mallocPtrs.begin(); it != _mallocPtrs.end(); ++it)
+            // {
+            //     Value *p = *it;
+            //     outs() << Utility::getShortValueName(p) << "\n";
+            // }
             _freePointer(lastBB);
 
             return true;
