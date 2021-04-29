@@ -74,7 +74,7 @@ bool HeapAnalysis::runOnFunction(Function &F)
 
     for (BasicBlock &BB : F)
     {
-        string bbName = BB.getName().str();
+        string bbName = Utility::getBlockLabel(&BB);
         for (Instruction &I : BB)
         {
             if (I.getType()->isPointerTy())
@@ -88,7 +88,7 @@ bool HeapAnalysis::runOnFunction(Function &F)
         for (auto it = succ_begin(&BB); it != succ_end(&BB); ++it)
         {
             BasicBlock *succBlock = *it;
-            string succName = succBlock->getName().str();
+            string succName = Utility::getBlockLabel(succBlock);
             succs.insert(succName);
         }
         basicBlockMap[bbName] = succs;
@@ -99,7 +99,7 @@ bool HeapAnalysis::runOnFunction(Function &F)
     {
         BitVector direct(elementCounter, false);
         BitVector kill(elementCounter, false);
-        string bbName = BB.getName().str();
+        string bbName = Utility::getBlockLabel(&BB);
         lDirect[bbName] = direct;
         lKill[bbName] = kill;
     }
@@ -108,7 +108,7 @@ bool HeapAnalysis::runOnFunction(Function &F)
     for (po_iterator<BasicBlock *> it = po_begin(&F.getEntryBlock()); it != po_end(&F.getEntryBlock()); ++it)
     {
         BasicBlock *bb = *it;
-        string bbName = bb->getName().str();
+        string bbName = Utility::getBlockLabel(bb);
         basicBlockOrder.push_back(bbName);
         for (auto rit = bb->rbegin(); rit != bb->rend(); ++rit)
         {
@@ -130,7 +130,7 @@ bool HeapAnalysis::runOnFunction(Function &F)
             }
         }
     }
-
+   
     HeapAnalysisFramework framework(domain, Backward, Union, boundary, basicBlockCounter, elementCounter, lDirect, lKill, basicBlockMap, basicBlockOrder);
     framework.Init();
     framework.Compute();

@@ -69,4 +69,14 @@ namespace llvm
             outs() << "\n";
         }
     }
+
+    string Utility::getBlockLabel(BasicBlock *B)
+    {
+        if(!B->getName().empty())
+            return B->getName().str();
+        string str;
+        raw_string_ostream OS(str);
+        B->printAsOperand(OS, false);
+        return OS.str();
+    }
 }
