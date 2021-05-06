@@ -56,4 +56,4 @@ This pass utlizes data from Dominators and HeapAnalysis to compute the pointers 
 - Navigate to the `src` directory and run the `make` command. This will build all the passes.
 
 ## Running the Passes
-Four microbenchmarks are written to test these passes inside `./tests/benchmarks`. To run the passes navigate to the `benchmarks` directory and run the command `sudo bash run-analysis.sh`. 
+Four microbenchmarks are written to test these passes inside `./tests/benchmarks`. To run the passes navigate to the `benchmarks` directory and run the command `sudo bash run-analysis.sh testName`. Eg. `sudo bash run-analysis.sh test1`. This will first analyse the bitcode without heap transformation, then run the transformation pass on the bitcode and finally analyse the bitcode again with transformation.
